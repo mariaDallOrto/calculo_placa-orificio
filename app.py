@@ -176,6 +176,39 @@ def calculate_delta_omega(β, C, dp):
     Δω = (numerator / denominator) * dp
     return Δω
  
+def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada):
+    dp_normal = dp_max*((v_normal/v_max)**2)
+    p2 = p1 - dp_normal
+
+    C = 0.6 # quando for líquido altera só esse
+    ε = 1 # caso de gás compressível altera esse também
+
+    β = calcular_beta(C, ε, D, qm, dp_normal, p)
+    C_atual = calcular_c(β, qm,p,D,μ, tomada)
+    C_anterior = C
+    max_iterations = 1000
+    iterations = 0
+    while(abs(C_atual - C_anterior) > 10**-6):
+        iterations += 1
+        if iterations > max_iterations:        
+            st.error("O cálculo não convergiu após 1000 iterações.")
+            break
+        C_anterior = C_atual
+        if estado == "Gas":
+            ε = calculo_epsilon(β, p1, p2, k)
+        β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
+        C_atual = calcular_c(β, qm,p,D,μ, tomada)
+
+    d = β*D
+    q = calculate_qm(C_atual, ε, β, D, dp_normal, p)
+    q = q*3600/1000
+    Δω = calculate_delta_omega(β, C_atual, dp_normal)
+    v = calcular_velocidade(qm/p,D) # adicionar o caso com q (FS)
+    Re_D = calcular_reynolds(p,v,D,μ) # segundo caso com essa nova velocidade
+
+    return β, C_atual, d, q, Δω, v, Re_D, dp_normal
+
+
 # Configuração da interface Streamlit
 st.title("Cálculo de Vazão e Parâmetros em Tubulações")
 # Estilos personalizados para reduzir o espaçamento entre elementos
@@ -266,36 +299,8 @@ if st.button("Calcular"):
         p1 = p1 # Pressão de entrada em Pa
         k = fator_compressibilidade # CpCv
         tomada = tomada
- 
-        dp_normal = dp_max*((v_normal/v_max)**2)
-        p2 = p1 - dp_normal
- 
-        C = 0.6 # quando for líquido altera só esse
-        ε = 1 # caso de gás compressível altera esse também
- 
-        β = calcular_beta(C, ε, D, qm, dp_normal, p)
-        C_atual = calcular_c(β, qm,p,D,μ, tomada)
-        C_anterior = C
-        max_iterations = 1000
-        iterations = 0
-        while(abs(C_atual - C_anterior) > 10**-6):
-            iterations += 1
-            if iterations > max_iterations:        
-                st.error("O cálculo não convergiu após 1000 iterações.")
-                break
-            C_anterior = C_atual
-            if estado == "Gas":
-                ε = calculo_epsilon(β, p1, p2, k)
-            β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
-            C_atual = calcular_c(β, qm,p,D,μ, tomada)
- 
-        d = β*D
-        q = calculate_qm(C_atual, ε, β, D, dp_normal, p)
-        q = q*3600/1000
-        Δω = calculate_delta_omega(β, C_atual, dp_normal)
-        v = calcular_velocidade(qm/p,D) # adicionar o caso com q (FS)
-        Re_D = calcular_reynolds(p,v,D,μ) # segundo caso com essa nova velocidade
- 
+        
+        β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada)
  
         # Salvar resultados na sessão
         st.session_state.resultados = {
@@ -369,8 +374,9 @@ if st.button("Calcular"):
                 key="beta_slider",
             )
            
-            if β > 0.7 or β < 0.2:
+            if β < 0.2:
                 valid_beta = False
+                st.error("Será recalculado com outros valores de Delta P")
             else:
                 valid_beta = True
 

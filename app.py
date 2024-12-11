@@ -225,6 +225,8 @@ pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de en
                                                                  "Pa", key="pressao_entrada")
  
 tomada = st.selectbox("Informe o tipo de medição:", ["Flange", "D", "Canto"], key="tomada")
+
+tag = st.text_input("Informe o tag do instrumento:", key="tag")
  
 if st.button("Calcular"):
     st.session_state.calculo_feito = True
@@ -298,6 +300,7 @@ if st.button("Calcular"):
         # Salvar resultados na sessão
         st.session_state.resultados = {
             "Parâmetro": [
+                "Tag",
                 "Pressão diferencial normal [mmH2O]",
                 "Vazão calculada [m³/h]",
                 "Beta",
@@ -309,6 +312,7 @@ if st.button("Calcular"):
                 "vazão massica informada [kg/s]",
             ],
             "Valor": [
+                tag,
                 f"{dp_normal / 9.80638:.2f}",
                 f"{q:.2f}",
                 f"{β:.3f}",

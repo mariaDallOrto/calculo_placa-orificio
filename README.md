@@ -34,6 +34,6 @@ Existem algumas ressalvas durante este cálculo.
 ![termo-c](https://github.com/user-attachments/assets/fed5490f-89c6-4779-8335-ca90bc180b7d)
 
 - Dependendo do tipo de tomada, os valores de L1 e L2 são modificados.
-- 
+ 
 ### Cálculo do fator de expansão
 

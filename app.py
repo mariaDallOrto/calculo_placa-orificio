@@ -369,6 +369,11 @@ if st.button("Calcular"):
                 key="beta_slider",
             )
            
+            if β > 0.7 or β < 0.2:
+                valid_beta = False
+            else:
+                valid_beta = True
+
             # Exibir o slider para Reynolds
             reynolds_lower_limit = 5000 if tomada in ["D", "Canto"] else 16000 * β**2
             st.slider(
@@ -382,7 +387,7 @@ if st.button("Calcular"):
             )
            
             # Exibir mensagem de validação
-            if valid_reynolds :
+            if valid_reynolds and valid_beta:
                 st.success("Os valores calculados atendem aos critérios.")
             else:
                 st.error("Os valores calculados NÃO atendem aos critérios!")

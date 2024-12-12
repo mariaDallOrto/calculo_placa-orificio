@@ -208,6 +208,61 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
 
     return β, C_atual, d, q, Δω, v, Re_D, dp_normal
 
+def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, beta_initial, beta_condition, dp_adjustment, dp_processo):
+    """
+    Recalcula valores para diferentes valores de Delta P até que a condição do Beta seja satisfeita.
+
+    Args:
+        tag (str): Tag do instrumento.
+        v_normal (float): Vazão mássica normal.
+        v_max (float): Vazão mássica máxima.
+        dp_max (float): Pressão diferencial máxima inicial.
+        p (float): Densidade.
+        qm (float): Vazão mássica.
+        D (float): Diâmetro interno da tubulação.
+        μ (float): Viscosidade.
+        estado (str): Estado do fluido ("Gas" ou "Liquido").
+        p1 (float): Pressão de entrada.
+        k (float): Fator de compressibilidade.
+        tomada (str): Tipo de tomada ("Flange", "D", "Canto").
+        beta_initial (float): Valor inicial do Beta.
+        beta_condition (callable): Condição para continuar iterando.
+        dp_adjustment (callable): Função para ajustar dp_max em cada iteração.
+
+    Returns:
+        List[Dict]: Lista de dicionários com os resultados recalculados.
+    """
+    beta_values = []
+    dp_max_i = dp_max
+    β = beta_initial
+
+    while beta_condition(β, dp_max_i):
+        dp_max_i = dp_adjustment(dp_max_i)  # Ajusta dp_max
+
+        try:
+            β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal, v_max, dp_max_i, p, qm, D, μ, estado, p1, k, tomada)
+
+            # Armazena os valores em uma lista para exibição posterior
+            beta_values.append({
+                "Tag": tag,
+                "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
+                "Pressão diferencial normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
+                "Vazão calculada [m³/h]": f"{q:.2f}",
+                "Beta": f"{β:.3f}",
+                "Diâmetro da placa [mm]": f"{d * 1000:.2f}",
+                "Coeficiente C": f"{C_atual:.3f}",
+                "Perda de carga permanente [bar]": f"{Δω * 1e-5:.2f}",
+                "Velocidade [m/s]": f"{v:.2f}",
+                "Número de Reynolds": f"{Re_D:.2f}",
+                "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
+                "Perda de carga máxima informada [bar]": f"{dp_processo:.2f}"
+            })
+
+        except Exception as e:
+            st.error(f"Erro durante o cálculo iterativo: {e}")
+            break
+
+    return beta_values
 
 # Configuração da interface Streamlit
 st.title("Cálculo de Vazão e Parâmetros em Tubulações")
@@ -229,7 +284,9 @@ estado_fluido = st.selectbox("Estado do fluido:", ["Gas", "Liquido"], key="estad
 delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo:", 2500.0,
                                                  ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
                                                  "Pa", key="delta_p")
- 
+
+dp_processo = st.number_input("DP máximo permitido por processos (bar):", value=0.5, key="dp_processo")
+
 vazao_max_valor, vazao_max_unidade = input_with_unit("Vazão máxima de cálculo:", 35.00000,
                                                      ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"],
                                                      "kg/s", key="vazao_max")
@@ -311,10 +368,11 @@ if st.button("Calcular"):
                 "Beta",
                 "Diâmetro da placa [mm]",
                 "Coeficiente C",
-                "Perda de carga permanente [Pa]",
+                "Perda de carga permanente [bar]",
                 "Velocidade [m/s]",
                 "Número de Reynolds",
-                "vazão massica informada [kg/s]",
+                "Vazão massica informada [kg/s]",
+                "Perda de carga máxima informada [bar]",
             ],
             "Valor": [
                 tag,
@@ -323,10 +381,11 @@ if st.button("Calcular"):
                 f"{β:.3f}",
                 f"{d * 1000:.2f}",
                 f"{C_atual:.3f}",
-                f"{Δω:.2f}",
+                f"{Δω * 1e-5:.2f}",
                 f"{v:.2f}",
                 f"{Re_D:.2f}",
-                f"{v_normal: .2f}"
+                f"{v_normal: .2f}",
+                f"{dp_processo:.2f}",
             ],
         }
         st.success("Cálculo concluído!")
@@ -386,51 +445,37 @@ if st.button("Calcular"):
                 key="reynolds_slider",
             )
 
-            if β > 0.7:
+            if β > 0.7 or β < 0.2:
                 valid_beta = False
-                st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
-
-                # Lógica para recalcular beta com valores de dp_max reduzidos
-                beta_values = []
-                dp_max_i = dp_max
-
-                while β > 0.7 and dp_max_i > 50000: 
-                    dp_max_i += 250 * 9.80638  # Reduz dp_max em 250 mmH2O convertido para Pa
-                    try:
-                        β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal, v_max, dp_max_i, p, qm, D, μ, estado, p1, k, tomada)
-
-                        # Armazena os valores em uma lista para exibição posterior
-                        beta_values.append({
-                            "Tag": tag,
-                            "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
-                            "Pressão diferencial normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
-                            "Vazão calculada [m³/h]": f"{q:.2f}",
-                            "Beta": f"{β:.3f}",
-                            "Diâmetro da placa [mm]": f"{d * 1000:.2f}",
-                            "Coeficiente C": f"{C_atual:.3f}",
-                            "Perda de carga permanente [Pa]": f"{Δω:.2f}",
-                            "Velocidade [m/s]": f"{v:.2f}",
-                            "Número de Reynolds": f"{Re_D:.2f}",
-                            "Vazão mássica informada [kg/s]": f"{v_normal:.2f}"
-                        })
-
-                    except Exception as e:
-                        st.error(f"Erro durante o cálculo iterativo: {e}")
-                        break
-
-                # Exibe os resultados recalculados em uma tabela no Streamlit
-                if beta_values:
-                    st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
-                    recalculated_df = pd.DataFrame(beta_values)
-                    st.table(recalculated_df)
             else:
                 valid_beta = True
-
             # Exibir mensagem de validação
             if valid_reynolds and valid_beta:
                 st.success("Os valores calculados atendem aos critérios.")
             else:
                 st.error("Os valores calculados NÃO atendem aos critérios!")
+
+            if β > 0.7 or β < 0.4:
+                st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
+
+                # Define condições específicas para cada caso
+                if β > 0.7:
+                    beta_condition = lambda β, dp_max_i: β > 0.7 and dp_max_i < 50000
+                    dp_adjustment = lambda dp_max_i: dp_max_i + 250 * 9.80638
+                elif β < 0.2:
+                    beta_condition = lambda β, dp_max_i: β < 0.2 and dp_max_i > 0
+                    dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638
+
+                # Recalcula valores
+                beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo)
+
+                # Exibe os resultados recalculados
+                if beta_values:
+                    st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
+                    recalculated_df = pd.DataFrame(beta_values).transpose() 
+                    st.table(recalculated_df)
+            else:
+                valid_beta = True
  
     except Exception as e:
         st.error(f"Ocorreu um erro nos cálculos: {e}")

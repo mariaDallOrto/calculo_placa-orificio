@@ -343,11 +343,11 @@ if st.button("Calcular"):
             if tomada in ["D", "Canto"]:
                 lower_beta_limit = 0.1
                 upper_beta_limit = 0.56
-                valid_reynolds = Re_D >= 5000 and lower_beta_limit <= β <= upper_beta_limit
+                valid_reynolds = (Re_D >= 5000 and lower_beta_limit <= β <= upper_beta_limit) or (Re_D >= (16000 * β**2))
             else:  # Tomada tipo "Flange"
                 lower_beta_limit = 0.56
                 upper_beta_limit = 1.0  # Limite superior arbitrário, já que β > 0.56
-                valid_reynolds = Re_D >= (16000 * β**2) and β > lower_beta_limit
+                valid_reynolds = Re_D >= (170 * (β**2) * D) and Re_D > 5000
            
             # Estilo personalizado para o slider
             slider_color = "green" if valid_reynolds else "red"
@@ -373,12 +373,6 @@ if st.button("Calcular"):
                 disabled=True,  # Apenas exibição
                 key="beta_slider",
             )
-           
-            if β < 0.2:
-                valid_beta = False
-                st.error("Será recalculado com outros valores de Delta P")
-            else:
-                valid_beta = True
 
             # Exibir o slider para Reynolds
             reynolds_lower_limit = 5000 if tomada in ["D", "Canto"] else 16000 * β**2
@@ -391,7 +385,47 @@ if st.button("Calcular"):
                 disabled=True,  # Apenas exibição
                 key="reynolds_slider",
             )
-           
+
+            if β > 0.7:
+                valid_beta = False
+                st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
+
+                # Lógica para recalcular beta com valores de dp_max reduzidos
+                beta_values = []
+                dp_max_i = dp_max
+
+                while β > 0.7 and dp_max_i > 50000: 
+                    dp_max_i += 250 * 9.80638  # Reduz dp_max em 250 mmH2O convertido para Pa
+                    try:
+                        β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal, v_max, dp_max_i, p, qm, D, μ, estado, p1, k, tomada)
+
+                        # Armazena os valores em uma lista para exibição posterior
+                        beta_values.append({
+                            "Tag": tag,
+                            "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
+                            "Pressão diferencial normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
+                            "Vazão calculada [m³/h]": f"{q:.2f}",
+                            "Beta": f"{β:.3f}",
+                            "Diâmetro da placa [mm]": f"{d * 1000:.2f}",
+                            "Coeficiente C": f"{C_atual:.3f}",
+                            "Perda de carga permanente [Pa]": f"{Δω:.2f}",
+                            "Velocidade [m/s]": f"{v:.2f}",
+                            "Número de Reynolds": f"{Re_D:.2f}",
+                            "Vazão mássica informada [kg/s]": f"{v_normal:.2f}"
+                        })
+
+                    except Exception as e:
+                        st.error(f"Erro durante o cálculo iterativo: {e}")
+                        break
+
+                # Exibe os resultados recalculados em uma tabela no Streamlit
+                if beta_values:
+                    st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
+                    recalculated_df = pd.DataFrame(beta_values)
+                    st.table(recalculated_df)
+            else:
+                valid_beta = True
+
             # Exibir mensagem de validação
             if valid_reynolds and valid_beta:
                 st.success("Os valores calculados atendem aos critérios.")

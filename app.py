@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
- 
+
 def converter_unidade(valor, unidade):
     fatores_de_conversao = {
         'vazao': {
@@ -208,7 +208,7 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
 
     return β, C_atual, d, q, Δω, v, Re_D, dp_normal
 
-def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, beta_initial, beta_condition, dp_adjustment, dp_processo):
+def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, beta_initial, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha):
     """
     Recalcula valores para diferentes valores de Delta P até que a condição do Beta seja satisfeita.
 
@@ -241,21 +241,23 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
 
         try:
             β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal, v_max, dp_max_i, p, qm, D, μ, estado, p1, k, tomada)
-
+            d = d * np.sqrt(1 - (2*(alpha) * (temperatura-20)))
+            beta = d/D_i # a condição de 20ºC
             # Armazena os valores em uma lista para exibição posterior
             beta_values.append({
                 "Tag": tag,
                 "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
                 "Pressão diferencial normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
                 "Vazão calculada [m³/h]": f"{q:.2f}",
-                "Beta": f"{β:.3f}",
-                "Diâmetro da placa [mm]": f"{d * 1000:.2f}",
+                "Beta a temperatura operacional": f"{β:.5f}",
+                "Beta @20ºC": f"{beta:.5f}",
+                "Diâmetro da placa [mm] @20ºC": f"{d * 1000:.5f}",
                 "Coeficiente C": f"{C_atual:.3f}",
-                "Perda de carga permanente [bar]": f"{Δω * 1e-5:.2f}",
+                "Perda de carga permanente [bar]": f"{Δω* 1e-5:.5f}",
                 "Velocidade [m/s]": f"{v:.2f}",
                 "Número de Reynolds": f"{Re_D:.2f}",
                 "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
-                "Perda de carga máxima informada [bar]": f"{dp_processo:.2f}"
+                "Perda de carga máxima informada [bar]": f"{dp_processo:.2f}",
             })
 
         except Exception as e:
@@ -264,11 +266,6 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
 
     return beta_values
 
-# Configuração da interface Streamlit
-st.title("Cálculo de Vazão e Parâmetros em Tubulações")
-# Estilos personalizados para reduzir o espaçamento entre elementos
-# Função auxiliar para entrada com unidade ao lado, com 'key' para cada elemento
-# Função auxiliar para entrada com unidade ao lado dentro de um contêiner
 def input_with_unit(label, value, unit_options, default_unit, key):
     st.write(label)  # Exibe o texto explicativo no topo
     col1, col2 = st.columns([3, 1])  # Define duas colunas para o valor e a unidade
@@ -298,7 +295,7 @@ def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
         step=0.01,
         format="%.3f",
         disabled=True,  # Apenas exibição
-        key="beta_slider",
+        key=f"beta_slider_{β:.5f}",
     )
 
     # Exibir o slider para Reynolds
@@ -310,7 +307,7 @@ def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
         value=Re_D,  # Mostrar o valor de Reynolds calculado
         step=100.0,
         disabled=True,  # Apenas exibição
-        key="reynolds_slider",
+        key=f"reynolds_slider_{β:.5f}",
     )
 
     if β > 0.7 or β < 0.2:
@@ -328,17 +325,24 @@ def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
         "Perda de Carga [bar]",
         min_value=0.0,
         max_value=dp_processo,
-        value=Δω * 1e-5,
+        value=Δω,
         step=0.01,
-        format="%.3f",
+        format="%.5f",
         disabled=True,  # Apenas exibição
-        key="perda_de_carga_slider",
+        key=f"perda_de_carga_slider_{β:.5f}",
     )
 
     # Exibir aviso se Δω for maior que dp_processo
     if Δω * 1e-5 > dp_processo:
         st.warning("A perda de carga está acima do definido.")
 
+
+
+# Configuração da interface Streamlit
+st.title("Cálculo do diâmtro de Placas de Orifício")
+# Estilos personalizados para reduzir o espaçamento entre elementos
+# Função auxiliar para entrada com unidade ao lado, com 'key' para cada elemento
+# Função auxiliar para entrada com unidade ao lado dentro de um contêiner
 
 # Entradas com chaves únicas
 estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido"], key="estado_fluido")
@@ -364,6 +368,10 @@ densidade_valor, densidade_unidade = input_with_unit("Densidade (Density):", 26.
 viscosidade_valor, viscosidade_unidade = input_with_unit("Viscosidade (Viscosity):", 0.03,
                                                          ["Pa*s", "cP", "mPa*s", "P"],
                                                          "Pa*s", key="viscosidade")
+
+temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
+
+alpha = 1.2e-5
  
 fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade")
  
@@ -379,7 +387,24 @@ pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de en
 tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
 
 tag = st.text_input("Informe o tag do instrumento (TagNo):", key="tag")
- 
+
+dados_entrada = {
+        "Estado do fluido": estado_fluido,
+        "Delta P na vazão máxima de cálculo": f"{delta_p_valor} {delta_p_unidade}",
+        "DP máximo permitido por processos": f"{dp_processo} bar",
+        "Vazão máxima de cálculo": f"{vazao_max_valor} {vazao_max_unidade}",
+        "Vazão normal": f"{vazao_normal_valor} {vazao_normal_unidade}",
+        "Densidade": f"{densidade_valor} {densidade_unidade}",
+        "Viscosidade": f"{viscosidade_valor} {viscosidade_unidade}",
+        "Temperatura de operação": f"{temperatura} ºC",
+        "Fator de Compressibilidade Cp/Cv": fator_compressibilidade,
+        "Diâmetro da linha": f"{diametro_linha} polegadas",
+        "Pressão de entrada": f"{pressao_entrada_valor} {pressao_entrada_unidade}",
+        "Tipo de medição": tomada,
+        "Tag do instrumento": tag,
+    }
+
+
 if st.button("Calcular"):
     st.session_state.calculo_feito = True
     try:
@@ -412,7 +437,8 @@ if st.button("Calcular"):
         qm = v_normal # kg/s
         externo = externo # mm
         parede = parede # mm
-        D = (externo - 2*parede)/1000 # diâmetro interno m
+        D_i = (externo - 2*parede)/1000 # diâmetro interno m
+        D = D_i * np.sqrt(1 + (2*(16e-6) * (temperatura-20)))
         μ = viscosidade # viscosidade Pa.s
         estado = estado_fluido
         p1 = p1 # Pressão de entrada em Pa
@@ -420,34 +446,40 @@ if st.button("Calcular"):
         tomada = tomada
         
         β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada)
- 
+
+        d = d * np.sqrt(1 - (2*(alpha) * (temperatura-20)))
+        beta = d/D_i # a condição de 20ºC
         # Salvar resultados na sessão
         st.session_state.resultados = {
             "Parâmetro": [
                 "Tag",
                 "Pressão diferencial normal [mmH2O]",
                 "Vazão calculada [m³/h]",
-                "Beta",
-                "Diâmetro da placa [mm]",
+                "Beta a temperatura operacional",
+                "Beta @20ºC",
+                "Diâmetro da placa @20ºC [mm]",
                 "Coeficiente C",
                 "Perda de carga permanente [bar]",
                 "Velocidade [m/s]",
                 "Número de Reynolds",
                 "Vazão massica informada [kg/s]",
                 "Perda de carga máxima informada [bar]",
+                "Diâmetro da placa externo a temperatura 20ºC[mm]",
             ],
             "Valor": [
                 tag,
                 f"{dp_normal / 9.80638:.2f}",
                 f"{q:.2f}",
-                f"{β:.3f}",
-                f"{d * 1000:.2f}",
+                f"{β:.5f}",
+                f"{beta:.5f}",
+                f"{d * 1000:.5f}",
                 f"{C_atual:.3f}",
                 f"{Δω * 1e-5:.2f}",
                 f"{v:.2f}",
                 f"{Re_D:.2f}",
                 f"{v_normal: .2f}",
                 f"{dp_processo:.2f}",
+                f"{D_i * 1000:.2f}",
             ],
         }
         st.success("Cálculo concluído!")
@@ -457,7 +489,7 @@ if st.button("Calcular"):
             resultados_df = pd.DataFrame(st.session_state.resultados)
             st.table(resultados_df)
        
-            exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo)
+            exibir_sliders(β, Re_D, tomada, D, Δω* 1e-5, dp_processo)
 
             if β > 0.7 or β < 0.2:
                 st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
@@ -471,7 +503,7 @@ if st.button("Calcular"):
                     dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638
 
                 # Recalcula valores
-                beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo)
+                beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha)
 
                 # Exibe os resultados recalculados
                 if beta_values:
@@ -481,12 +513,12 @@ if st.button("Calcular"):
 
                 # Exibir sliders ajustados para os novos valores
                 novo_delta_omega = float(recalculated_df.loc["Perda de carga permanente [bar]"].iloc[-1])
-                novo_beta = float(recalculated_df.loc["Beta"].iloc[-1])  # Último valor de Beta recalculado
+                novo_beta = float(recalculated_df.loc["Beta @20ºC"].iloc[-1])  # Último valor de Beta recalculado
                 novo_reynolds = float(recalculated_df.loc["Número de Reynolds"].iloc[-1])  # Último valor de Reynolds recalculado
                 exibir_sliders(novo_beta, novo_reynolds, tomada, D, novo_delta_omega, dp_processo)
 
             else:
                 valid_beta = True
-            
+
     except Exception as e:
         st.error(f"Ocorreu um erro nos cálculos: {e}")

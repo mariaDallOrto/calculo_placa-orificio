@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#E55204"  # Custom primary color
+backgroundColor = "#C5D2FF"  # Background color
+secondaryBackgroundColor = "#FFF"  # Sidebar background color
+textColor = "#000"  # Text color
+font = "sans serif"  # Font family (options: 'sans serif', 'serif', or 'monospace')

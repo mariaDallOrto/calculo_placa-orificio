@@ -3,6 +3,24 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 
+# Configuração da página
+st.set_page_config(
+    page_title="Cálculo do diâmetro de Placas de Orifício",
+    page_icon="logo.ico",  # Caminho do ícone
+)
+
+st.sidebar.image("logo.png", width=450)
+
+# Criar colunas para layout horizontal
+st.markdown(
+    """
+    <div style="display: flex; justify-content: center; align-items: center; margin-top: 20px;">
+        <h1 style="color: #E55204; margin: 0;">Cálculo do diâmetro de Placas de Orifício</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 def converter_unidade(valor, unidade):
     fatores_de_conversao = {
         'vazao': {
@@ -21,6 +39,7 @@ def converter_unidade(valor, unidade):
             'psi': 6894.76,
             'mmH2O': 9.80665,
             'inH2O': 249.08891,
+            'kgf/cm²': 98.0665e3,
         },
         'densidade': {
             'kg/m³': 1,  # Unidade de saída já é kg/m³
@@ -336,15 +355,13 @@ def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
     if Δω * 1e-5 > dp_processo:
         st.warning("A perda de carga está acima do definido.")
 
-
-
-# Configuração da interface Streamlit
-st.title("Cálculo do diâmtro de Placas de Orifício")
 # Estilos personalizados para reduzir o espaçamento entre elementos
 # Função auxiliar para entrada com unidade ao lado, com 'key' para cada elemento
 # Função auxiliar para entrada com unidade ao lado dentro de um contêiner
-
+# Configuração da interface Streamlit
 # Entradas com chaves únicas
+
+
 estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido"], key="estado_fluido")
  
 delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
@@ -381,7 +398,7 @@ schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key=
 diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
  
 pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):", 90.8000,
-                                                                 ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
+                                                                 ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
                                                                  "Pa", key="pressao_entrada")
  
 tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")

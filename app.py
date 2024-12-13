@@ -277,7 +277,69 @@ def input_with_unit(label, value, unit_options, default_unit, key):
     with col2:
         unit = st.selectbox("Unidade:", unit_options, index=unit_options.index(default_unit), key=f"{key}_unit", label_visibility="collapsed")
     return input_value, unit
- 
+
+def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
+    # Condições para validação
+    if tomada in ["D", "Canto"]:
+        lower_beta_limit = 0.1
+        upper_beta_limit = 0.56
+        valid_reynolds = (Re_D >= 5000 and lower_beta_limit <= β <= upper_beta_limit) or (Re_D >= (16000 * β**2))
+    else:  # Tomada tipo "Flange"
+        lower_beta_limit = 0.56
+        upper_beta_limit = 1.0  # Limite superior arbitrário, já que β > 0.56
+        valid_reynolds = Re_D >= (170 * (β**2) * D) and Re_D > 5000
+    
+    # Exibir o slider para β
+    st.slider(
+        "Beta Calculado",
+        min_value=0.0,
+        max_value=1.0,
+        value=β,  # Mostrar o valor de β calculado
+        step=0.01,
+        format="%.3f",
+        disabled=True,  # Apenas exibição
+        key="beta_slider",
+    )
+
+    # Exibir o slider para Reynolds
+    reynolds_lower_limit = 5000 if tomada in ["D", "Canto"] else 16000 * β**2
+    st.slider(
+        "Número de Reynolds",
+        min_value=0.0,
+        max_value=float(max(int(Re_D * 1.5), int(reynolds_lower_limit * 1.5))),
+        value=Re_D,  # Mostrar o valor de Reynolds calculado
+        step=100.0,
+        disabled=True,  # Apenas exibição
+        key="reynolds_slider",
+    )
+
+    if β > 0.7 or β < 0.2:
+        valid_beta = False
+    else:
+        valid_beta = True
+    # Exibir mensagem de validação
+    if valid_reynolds and valid_beta:
+        st.success("Os valores calculados atendem aos critérios.")
+    else:
+        st.error("Os valores calculados NÃO atendem aos critérios!")
+
+    # Exibe o slider com Δω e dp_processo como limite máximo
+    st.slider(
+        "Perda de Carga [bar]",
+        min_value=0.0,
+        max_value=dp_processo,
+        value=Δω * 1e-5,
+        step=0.01,
+        format="%.3f",
+        disabled=True,  # Apenas exibição
+        key="perda_de_carga_slider",
+    )
+
+    # Exibir aviso se Δω for maior que dp_processo
+    if Δω * 1e-5 > dp_processo:
+        st.warning("A perda de carga está acima do definido.")
+
+
 # Entradas com chaves únicas
 estado_fluido = st.selectbox("Estado do fluido:", ["Gas", "Liquido"], key="estado_fluido")
  
@@ -394,68 +456,10 @@ if st.button("Calcular"):
             st.subheader("Resultados Calculados")
             resultados_df = pd.DataFrame(st.session_state.resultados)
             st.table(resultados_df)
-            #Limites para o Beta
-            # Criar o gráfico
-            # Configuração do valor de beta, Reynolds e os critérios
        
-            # Condições para validação
-            if tomada in ["D", "Canto"]:
-                lower_beta_limit = 0.1
-                upper_beta_limit = 0.56
-                valid_reynolds = (Re_D >= 5000 and lower_beta_limit <= β <= upper_beta_limit) or (Re_D >= (16000 * β**2))
-            else:  # Tomada tipo "Flange"
-                lower_beta_limit = 0.56
-                upper_beta_limit = 1.0  # Limite superior arbitrário, já que β > 0.56
-                valid_reynolds = Re_D >= (170 * (β**2) * D) and Re_D > 5000
-           
-            # Estilo personalizado para o slider
-            slider_color = "green" if valid_reynolds else "red"
-            st.markdown(
-                f"""
-            <style>
-                .streamlit-slider {{
-                    background: {slider_color} !important;
-                }}
-            </style>
-                """,
-                unsafe_allow_html=True,
-            )
-           
-            # Exibir o slider para β
-            st.slider(
-                "Beta Calculado",
-                min_value=0.0,
-                max_value=1.0,
-                value=β,  # Mostrar o valor de β calculado
-                step=0.01,
-                format="%.3f",
-                disabled=True,  # Apenas exibição
-                key="beta_slider",
-            )
-
-            # Exibir o slider para Reynolds
-            reynolds_lower_limit = 5000 if tomada in ["D", "Canto"] else 16000 * β**2
-            st.slider(
-                "Número de Reynolds",
-                min_value=0.0,
-                max_value=float(max(int(Re_D * 1.5), int(reynolds_lower_limit * 1.5))),
-                value=Re_D,  # Mostrar o valor de Reynolds calculado
-                step=100.0,
-                disabled=True,  # Apenas exibição
-                key="reynolds_slider",
-            )
+            exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo)
 
             if β > 0.7 or β < 0.2:
-                valid_beta = False
-            else:
-                valid_beta = True
-            # Exibir mensagem de validação
-            if valid_reynolds and valid_beta:
-                st.success("Os valores calculados atendem aos critérios.")
-            else:
-                st.error("Os valores calculados NÃO atendem aos critérios!")
-
-            if β > 0.7 or β < 0.4:
                 st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
 
                 # Define condições específicas para cada caso
@@ -474,8 +478,15 @@ if st.button("Calcular"):
                     st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
                     recalculated_df = pd.DataFrame(beta_values).transpose() 
                     st.table(recalculated_df)
+
+                # Exibir sliders ajustados para os novos valores
+                novo_delta_omega = float(recalculated_df.loc["Perda de carga permanente [bar]"].iloc[-1])
+                novo_beta = float(recalculated_df.loc["Beta"].iloc[-1])  # Último valor de Beta recalculado
+                novo_reynolds = float(recalculated_df.loc["Número de Reynolds"].iloc[-1])  # Último valor de Reynolds recalculado
+                exibir_sliders(novo_beta, novo_reynolds, tomada, D, novo_delta_omega, dp_processo)
+
             else:
                 valid_beta = True
- 
+            
     except Exception as e:
         st.error(f"Ocorreu um erro nos cálculos: {e}")

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
+import bcrypt
 
 # Configuração da página
 st.set_page_config(
@@ -9,17 +10,42 @@ st.set_page_config(
     page_icon="logo.ico",  # Caminho do ícone
 )
 
-st.sidebar.image("logo.png", width=450)
+# Configuração de credenciais (simples para exemplo)
+USER_CREDENTIALS = {
+    "promon-is": bcrypt.hashpw("estagiaria".encode(), bcrypt.gensalt()),
+}
 
-# Criar colunas para layout horizontal
-st.markdown(
-    """
-    <div style="display: flex; justify-content: center; align-items: center; margin-top: 20px;">
-        <h1 style="color: #E55204; margin: 0;">Cálculo do diâmetro de Placas de Orifício</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Função para autenticação
+def autenticar(username, password):
+    if username in USER_CREDENTIALS:
+        hashed_pw = USER_CREDENTIALS[username]
+        return bcrypt.checkpw(password.encode(), hashed_pw)
+    return False
+
+# Função de logout
+def sair():
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.current_page = "login"
+    st.rerun()  # Força a recarga da aplicação
+
+# Tela de login
+def login_page():
+    st.image("logo.png", width=450)
+    st.title("Login")
+    st.write("Por favor, insira suas credenciais para acessar o sistema.")
+
+    username = st.text_input("Usuário", key="login_username")
+    password = st.text_input("Senha", type="password", key="login_password")
+
+    if st.button("Entrar"):
+        if autenticar(username, password):
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.session_state.current_page = "main"
+            st.rerun()  # Força a recarga da aplicação
+        else:
+            st.error("Usuário ou senha inválidos.")
 
 def converter_unidade(valor, unidade):
     fatores_de_conversao = {
@@ -213,7 +239,7 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
             st.error("O cálculo não convergiu após 1000 iterações.")
             break
         C_anterior = C_atual
-        if estado == "Gas":
+        if estado == "Gas" or "Vapor":
             ε = calculo_epsilon(β, p1, p2, k)
         β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
         C_atual = calcular_c(β, qm,p,D,μ, tomada)
@@ -221,7 +247,7 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
     d = β*D
     q = calculate_qm(C_atual, ε, β, D, dp_normal, p)
     q = q*3600/1000
-    Δω = calculate_delta_omega(β, C_atual, dp_normal)
+    Δω = calculate_delta_omega(β, C_atual, dp_max)
     v = calcular_velocidade(qm/p,D) # adicionar o caso com q (FS)
     Re_D = calcular_reynolds(p,v,D,μ) # segundo caso com essa nova velocidade
 
@@ -361,181 +387,199 @@ def exibir_sliders(β, Re_D, tomada, D, Δω, dp_processo):
 # Configuração da interface Streamlit
 # Entradas com chaves únicas
 
+# Tela principal
+def main_page():
+    st.sidebar.write(f"Usuário logado: {st.session_state.username}")
+    if st.sidebar.button("Sair"):
+        sair()
 
-estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido"], key="estado_fluido")
- 
-delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
-                                                 ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
-                                                 "Pa", key="delta_p")
+    st.sidebar.image("logo.png", width=450)
 
-dp_processo = st.number_input("DP máximo permitido por processos (DPressureMax) [bar]:", value=0.5, key="dp_processo")
+    # Criar colunas para layout horizontal
+    st.markdown(
+        """
+        <div style="display: flex; justify-content: center; align-items: center; margin-top: 20px;">
+            <h1 style="color: #E55204; margin: 0;">Cálculo do diâmetro de Placas de Orifício</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-vazao_max_valor, vazao_max_unidade = input_with_unit("Vazão máxima de cálculo (ssdVazaoCalculo):", 35.00000,
-                                                     ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"],
-                                                     "kg/s", key="vazao_max")
- 
-vazao_normal_valor, vazao_normal_unidade = input_with_unit("Vazão normal (FlowNormal):", 27.30000,
-                                                           ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"],
-                                                           "kg/s", key="vazao_normal")
- 
-densidade_valor, densidade_unidade = input_with_unit("Densidade (Density):", 26.0045,
-                                                     ["kg/m³", "g/cm³", "lb/ft³"],
-                                                     "kg/m³", key="densidade")
- 
-viscosidade_valor, viscosidade_unidade = input_with_unit("Viscosidade (Viscosity):", 0.03,
-                                                         ["Pa*s", "cP", "mPa*s", "P"],
-                                                         "Pa*s", key="viscosidade")
+    tag = st.text_input("Informe o tag do instrumento (TagNo):", key="tag")
 
-temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
+    # caso vapor com densidade em kg/m^3, vazão em kg/h - padrão atual do aeng
+    # caso gas com vazão em Nm^3/h
+    st.caption("")
+    estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido", "Vapor"], key="estado_fluido")
 
-alpha = 1.2e-5
- 
-fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade")
- 
-busca_tipo = st.radio("Será informado o scheduleou a outra categoria da espessura da parede?", ["SCH", "Categoria"], key="busca_tipo")
-schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key="schedule")
- 
-diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
- 
-pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):", 90.8000,
-                                                                 ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
-                                                                 "Pa", key="pressao_entrada")
- 
-tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
+    delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
+                                                    ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
+                                                    "Pa", key="delta_p")
 
-tag = st.text_input("Informe o tag do instrumento (TagNo):", key="tag")
+    dp_processo = st.number_input("DP máximo permitido por processos (DPressureMax) [bar]:", value=0.5, key="dp_processo")
 
-dados_entrada = {
-        "Estado do fluido": estado_fluido,
-        "Delta P na vazão máxima de cálculo": f"{delta_p_valor} {delta_p_unidade}",
-        "DP máximo permitido por processos": f"{dp_processo} bar",
-        "Vazão máxima de cálculo": f"{vazao_max_valor} {vazao_max_unidade}",
-        "Vazão normal": f"{vazao_normal_valor} {vazao_normal_unidade}",
-        "Densidade": f"{densidade_valor} {densidade_unidade}",
-        "Viscosidade": f"{viscosidade_valor} {viscosidade_unidade}",
-        "Temperatura de operação": f"{temperatura} ºC",
-        "Fator de Compressibilidade Cp/Cv": fator_compressibilidade,
-        "Diâmetro da linha": f"{diametro_linha} polegadas",
-        "Pressão de entrada": f"{pressao_entrada_valor} {pressao_entrada_unidade}",
-        "Tipo de medição": tomada,
-        "Tag do instrumento": tag,
-    }
+    vazao_max_valor, vazao_max_unidade = input_with_unit("Vazão máxima de cálculo (ssdVazaoCalculo):", 35.00000,
+                                                        ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"
+                                                        ,"Nm³/h"], "kg/s", key="vazao_max")
 
+    vazao_normal_valor, vazao_normal_unidade = input_with_unit("Vazão normal (FlowNormal):", 27.30000,
+                                                            ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h",
+                                                            "Nm³/h"], "kg/s", key="vazao_normal")
 
-if st.button("Calcular"):
-    st.session_state.calculo_feito = True
-    try:
-        if busca_tipo == 'SCH':
-            externo, parede = buscar_valores(diametro_linha, sch=float(schedule))
-        elif busca_tipo == 'Categoria':
-            externo, parede = buscar_valores(diametro_linha, denominacao=schedule)
-        else:
-            print("Opção inválida.")
-            externo, parede = None, None
- 
-        # Converter valores para unidades padrão
-        dp_max, _ = converter_unidade(delta_p_valor, delta_p_unidade)
-        densidade, _ = converter_unidade(densidade_valor, densidade_unidade)
-       
-        # Verifica se as vazões são volumétricas e as converte para massivas
-        vazao_max_valor, vazao_max_unidade = converter_vazao_volumetrica_para_massica(vazao_max_valor, vazao_max_unidade, densidade)
-        v_max, _ = converter_unidade(vazao_max_valor, vazao_max_unidade)
-       
-        vazao_normal_valor, vazao_normal_unidade = converter_vazao_volumetrica_para_massica(vazao_normal_valor, vazao_normal_unidade, densidade)
-        v_normal, _ = converter_unidade(vazao_normal_valor, vazao_normal_unidade)
- 
-        viscosidade, _ = converter_unidade(viscosidade_valor, viscosidade_unidade)
-        p1, _ = converter_unidade(pressao_entrada_valor, pressao_entrada_unidade)
- 
-        v_normal = v_normal # vazão normal kg/s
-        v_max = v_max # vazão máxima kg/s
-        dp_max = dp_max # delta p máximo Pa
-        p =  densidade # densidade Pa
-        qm = v_normal # kg/s
-        externo = externo # mm
-        parede = parede # mm
-        D_i = (externo - 2*parede)/1000 # diâmetro interno m
-        D = D_i * np.sqrt(1 + (2*(16e-6) * (temperatura-20)))
-        μ = viscosidade # viscosidade Pa.s
-        estado = estado_fluido
-        p1 = p1 # Pressão de entrada em Pa
-        k = fator_compressibilidade # CpCv
-        tomada = tomada
-        
-        β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada)
+    densidade_valor, densidade_unidade = input_with_unit("Densidade (Density):", 26.0045,
+                                                        ["kg/m³", "g/cm³", "lb/ft³"],
+                                                        "kg/m³", key="densidade")
 
-        d = d * np.sqrt(1 - (2*(alpha) * (temperatura-20)))
-        beta = d/D_i # a condição de 20ºC
-        # Salvar resultados na sessão
-        st.session_state.resultados = {
-            "Parâmetro": [
-                "Tag",
-                "Pressão diferencial normal [mmH2O]",
-                "Vazão calculada [m³/h]",
-                "Beta a temperatura operacional",
-                "Beta @20ºC",
-                "Diâmetro da placa @20ºC [mm]",
-                "Coeficiente C",
-                "Perda de carga permanente [bar]",
-                "Velocidade [m/s]",
-                "Número de Reynolds",
-                "Vazão massica informada [kg/s]",
-                "Perda de carga máxima informada [bar]",
-                "Diâmetro da placa externo a temperatura 20ºC[mm]",
-            ],
-            "Valor": [
-                tag,
-                f"{dp_normal / 9.80638:.2f}",
-                f"{q:.2f}",
-                f"{β:.5f}",
-                f"{beta:.5f}",
-                f"{d * 1000:.5f}",
-                f"{C_atual:.3f}",
-                f"{Δω * 1e-5:.2f}",
-                f"{v:.2f}",
-                f"{Re_D:.2f}",
-                f"{v_normal: .2f}",
-                f"{dp_processo:.2f}",
-                f"{D_i * 1000:.2f}",
-            ],
-        }
-        st.success("Cálculo concluído!")
- 
-        if st.session_state.get("calculo_feito", False) and "resultados" in st.session_state:
-            st.subheader("Resultados Calculados")
-            resultados_df = pd.DataFrame(st.session_state.resultados)
-            st.table(resultados_df)
-       
-            exibir_sliders(β, Re_D, tomada, D, Δω* 1e-5, dp_processo)
+    viscosidade_valor, viscosidade_unidade = input_with_unit("Viscosidade (Viscosity):", 0.03,
+                                                            ["Pa*s", "cP", "mPa*s", "P"],
+                                                            "Pa*s", key="viscosidade")
 
-            if β > 0.7 or β < 0.2:
-                st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
+    temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
 
-                # Define condições específicas para cada caso
-                if β > 0.7:
-                    beta_condition = lambda β, dp_max_i: β > 0.7 and dp_max_i < 50000
-                    dp_adjustment = lambda dp_max_i: dp_max_i + 250 * 9.80638
-                elif β < 0.2:
-                    beta_condition = lambda β, dp_max_i: β < 0.2 and dp_max_i > 0
-                    dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638
+    alpha = 1.2e-5
 
-                # Recalcula valores
-                beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha)
+    fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade")
 
-                # Exibe os resultados recalculados
-                if beta_values:
-                    st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
-                    recalculated_df = pd.DataFrame(beta_values).transpose() 
-                    st.table(recalculated_df)
+    busca_tipo = st.radio("Será informado o scheduleou a outra categoria da espessura da parede?", ["SCH", "Categoria"], key="busca_tipo")
+    schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key="schedule")
 
-                # Exibir sliders ajustados para os novos valores
-                novo_delta_omega = float(recalculated_df.loc["Perda de carga permanente [bar]"].iloc[-1])
-                novo_beta = float(recalculated_df.loc["Beta @20ºC"].iloc[-1])  # Último valor de Beta recalculado
-                novo_reynolds = float(recalculated_df.loc["Número de Reynolds"].iloc[-1])  # Último valor de Reynolds recalculado
-                exibir_sliders(novo_beta, novo_reynolds, tomada, D, novo_delta_omega, dp_processo)
+    diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
 
+    pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):", 90.8000,
+                                                                    ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
+                                                                    "Pa", key="pressao_entrada")
+
+    tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
+
+    #if estado_fluido == "Gas":
+        # calculo da densidade
+        # peso molecular 
+    if st.button("Calcular"):
+        st.session_state.calculo_feito = True
+        try:
+            if busca_tipo == 'SCH':
+                externo, parede = buscar_valores(diametro_linha, sch=float(schedule))
+            elif busca_tipo == 'Categoria':
+                externo, parede = buscar_valores(diametro_linha, denominacao=schedule)
             else:
-                valid_beta = True
+                print("Opção inválida.")
+                externo, parede = None, None
 
-    except Exception as e:
-        st.error(f"Ocorreu um erro nos cálculos: {e}")
+            # Converter valores para unidades padrão
+            dp_max, _ = converter_unidade(delta_p_valor, delta_p_unidade)
+            densidade, _ = converter_unidade(densidade_valor, densidade_unidade)
+        
+            # Verifica se as vazões são volumétricas e as converte para massivas
+            vazao_max_valor, vazao_max_unidade = converter_vazao_volumetrica_para_massica(vazao_max_valor, vazao_max_unidade, densidade)
+            v_max, _ = converter_unidade(vazao_max_valor, vazao_max_unidade)
+        
+            vazao_normal_valor, vazao_normal_unidade = converter_vazao_volumetrica_para_massica(vazao_normal_valor, vazao_normal_unidade, densidade)
+            v_normal, _ = converter_unidade(vazao_normal_valor, vazao_normal_unidade)
+
+            viscosidade, _ = converter_unidade(viscosidade_valor, viscosidade_unidade)
+            p1, _ = converter_unidade(pressao_entrada_valor, pressao_entrada_unidade)
+
+            v_normal = v_normal # vazão normal kg/s
+            v_max = v_max # vazão máxima kg/s
+            dp_max = dp_max # delta p máximo Pa
+            p =  densidade # densidade Pa
+            qm = v_normal # kg/s
+            externo = externo # mm
+            parede = parede # mm
+            D_i = (externo - 2*parede)/1000 # diâmetro interno m
+            D = D_i * np.sqrt(1 + (2*(16e-6) * (temperatura-20)))
+            μ = viscosidade # viscosidade Pa.s
+            estado = estado_fluido
+            p1 = p1 # Pressão de entrada em Pa
+            k = fator_compressibilidade # CpCv
+            tomada = tomada
+            
+            β, C_atual, d, q, Δω, v, Re_D, dp_normal = calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada)
+
+            d = d * np.sqrt(1 - (2*(alpha) * (temperatura-20)))
+            beta = d/D_i # a condição de 20ºC
+            # Salvar resultados na sessão
+            st.session_state.resultados = {
+                "Parâmetro": [
+                    "Tag",
+                    "Pressão diferencial normal [mmH2O]",
+                    "Vazão calculada [m³/h]",
+                    "Beta a temperatura operacional",
+                    "Beta @20ºC",
+                    "Diâmetro da placa @20ºC [mm]",
+                    "Coeficiente C",
+                    "Perda de carga permanente [bar]",
+                    "Velocidade [m/s]",
+                    "Número de Reynolds",
+                    "Vazão massica informada [kg/s]",
+                    "Perda de carga máxima informada [bar]",
+                    "Diâmetro da placa externo a temperatura 20ºC[mm]",
+                ],
+                "Valor": [
+                    tag,
+                    f"{dp_normal / 9.80638:.2f}",
+                    f"{q:.2f}",
+                    f"{β:.5f}",
+                    f"{beta:.5f}",
+                    f"{d * 1000:.5f}",
+                    f"{C_atual:.3f}",
+                    f"{Δω * 1e-5:.2f}",
+                    f"{v:.2f}",
+                    f"{Re_D:.2f}",
+                    f"{v_normal: .2f}",
+                    f"{dp_processo:.2f}",
+                    f"{D_i * 1000:.2f}",
+                ],
+            }
+            st.success("Cálculo concluído!")
+
+            if st.session_state.get("calculo_feito", False) and "resultados" in st.session_state:
+                st.subheader("Resultados Calculados")
+                resultados_df = pd.DataFrame(st.session_state.resultados)
+                st.table(resultados_df)
+        
+                exibir_sliders(β, Re_D, tomada, D, Δω* 1e-5, dp_processo)
+
+                if β > 0.7 or β < 0.2:
+                    st.error("Beta inicial inválido. Recalculando com outros valores de Delta P...")
+
+                    # Define condições específicas para cada caso
+                    if β > 0.7:
+                        beta_condition = lambda β, dp_max_i: β > 0.7 and dp_max_i < 50000
+                        dp_adjustment = lambda dp_max_i: dp_max_i + 250 * 9.80638
+                    elif β < 0.2:
+                        beta_condition = lambda β, dp_max_i: β < 0.2 and dp_max_i > 0
+                        dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638
+
+                    # Recalcula valores
+                    beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha)
+
+                    # Exibe os resultados recalculados
+                    if beta_values:
+                        st.subheader("Resultados Recalculados para Diferentes Valores de ΔP")
+                        recalculated_df = pd.DataFrame(beta_values).transpose() 
+                        st.table(recalculated_df)
+
+                    # Exibir sliders ajustados para os novos valores
+                    novo_delta_omega = float(recalculated_df.loc["Perda de carga permanente [bar]"].iloc[-1])
+                    novo_beta = float(recalculated_df.loc["Beta @20ºC"].iloc[-1])  # Último valor de Beta recalculado
+                    novo_reynolds = float(recalculated_df.loc["Número de Reynolds"].iloc[-1])  # Último valor de Reynolds recalculado
+                    exibir_sliders(novo_beta, novo_reynolds, tomada, D, novo_delta_omega, dp_processo)
+
+                else:
+                    valid_beta = True
+
+        except Exception as e:
+            st.error(f"Ocorreu um erro nos cálculos: {e}")
+
+# Inicialização do estado da sessão
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "login"
+
+# Redirecionar para a página atual
+if st.session_state.current_page == "main" and st.session_state.logged_in:
+    main_page()
+else:
+    login_page()

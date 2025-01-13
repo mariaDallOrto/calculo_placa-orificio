@@ -10,16 +10,12 @@ st.set_page_config(
     page_icon="logo.ico",  # Caminho do ícone
 )
 
-# Configuração de credenciais (simples para exemplo)
-USER_CREDENTIALS = {
-    "promon-is": bcrypt.hashpw("estagiaria".encode(), bcrypt.gensalt()),
-}
-
 # Função para autenticação
 def autenticar(username, password):
-    if username in USER_CREDENTIALS:
-        hashed_pw = USER_CREDENTIALS[username]
-        return bcrypt.checkpw(password.encode(), hashed_pw)
+    if username in st.secrets.credentials:
+        # Recuperar senha hash do arquivo secrets.toml
+        hashed_pw = st.secrets.credentials[username]
+        return bcrypt.checkpw(password.encode(), hashed_pw.encode())
     return False
 
 # Função de logout
@@ -409,7 +405,7 @@ def main_page():
 
     # caso vapor com densidade em kg/m^3, vazão em kg/h - padrão atual do aeng
     # caso gas com vazão em Nm^3/h
-    st.caption("")
+    st.caption("Preencher o peso molecular apenas se as vazões estejam em Nm³/h e neste e apenas neste caso escolha Gas")
     estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido", "Vapor"], key="estado_fluido")
 
     delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
@@ -451,9 +447,9 @@ def main_page():
 
     tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
 
-    #if estado_fluido == "Gas":
-        # calculo da densidade
-        # peso molecular 
+    peso_molecular = st.number_input("Peso molecular:", key="peso_molecular")
+
+ 
     if st.button("Calcular"):
         st.session_state.calculo_feito = True
         try:
@@ -464,6 +460,12 @@ def main_page():
             else:
                 print("Opção inválida.")
                 externo, parede = None, None
+            
+            if estado_fluido == "Gas":
+                vazao_max_valor = 0.044*vazao_max_valor*peso_molecular
+                vazao_normal_valor = 0.044*vazao_normal_valor*peso_molecular
+                vazao_max_unidade = "kg/h"
+                vazao_normal_unidade = "kg/h"
 
             # Converter valores para unidades padrão
             dp_max, _ = converter_unidade(delta_p_valor, delta_p_unidade)

@@ -462,8 +462,10 @@ def main_page():
         st.session_state.calculo_feito = True
         try:
             alpha = buscar_material(material_placa) # usado no calculo da placa (material placa)
+            alpha = alpha * 1e-6
 
             beta = buscar_material(material_linha) # usado no calculo da parade externa (material linha)
+            beta = beta * 1e-6
             
             if busca_tipo == 'SCH':
                 externo, parede = buscar_valores(diametro_linha, sch=float(schedule))

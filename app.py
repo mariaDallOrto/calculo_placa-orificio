@@ -312,12 +312,12 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
 
     return beta_values
 
-def input_with_unit(label, value, unit_options, default_unit, key):
+def input_with_unit(label, unit_options, default_unit, key):
     st.write(label)  # Exibe o texto explicativo no topo
     col1, col2 = st.columns([3, 1])  # Define duas colunas para o valor e a unidade
     format_string = f"%.4f"
     with col1:
-        input_value = st.number_input("Valor:", value=value, key=f"{key}_value", label_visibility="collapsed", format=format_string)
+        input_value = st.number_input("Valor:", key=f"{key}_value", label_visibility="collapsed", format=format_string)
     with col2:
         unit = st.selectbox("Unidade:", unit_options, index=unit_options.index(default_unit), key=f"{key}_unit", label_visibility="collapsed")
     return input_value, unit

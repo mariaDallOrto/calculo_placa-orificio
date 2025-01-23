@@ -417,41 +417,41 @@ def main_page():
 
     delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
-                                                    "Pa", key="delta_p")
+                                                    "Pa", key="delta_p", format="%.4f")
 
-    dp_processo = st.number_input("DP máximo permitido por processos (DPressureMax) [bar]:", value=0.5, key="dp_processo")
+    dp_processo = st.number_input("DP máximo permitido por processos (DPressureMax) [bar]:", value=0.5, key="dp_processo", format="%.4f")
 
     vazao_max_valor, vazao_max_unidade = input_with_unit("Vazão máxima de cálculo (ssdVazaoCalculo):", 35.00000,
                                                         ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"
-                                                        ,"Nm³/h"], "kg/s", key="vazao_max")
+                                                        ,"Nm³/h"], "kg/s", key="vazao_max", format="%.4f")
 
     vazao_normal_valor, vazao_normal_unidade = input_with_unit("Vazão normal (FlowNormal):", 27.30000,
                                                             ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h",
-                                                            "Nm³/h"], "kg/s", key="vazao_normal")
+                                                            "Nm³/h"], "kg/s", key="vazao_normal", format="%.4f")
 
     densidade_valor, densidade_unidade = input_with_unit("Densidade (Density):", 26.0045,
                                                         ["kg/m³", "g/cm³", "lb/ft³"],
-                                                        "kg/m³", key="densidade")
+                                                        "kg/m³", key="densidade", format="%.4f")
 
     viscosidade_valor, viscosidade_unidade = input_with_unit("Viscosidade (Viscosity):", 0.03,
                                                             ["Pa*s", "cP", "mPa*s", "P"],
-                                                            "Pa*s", key="viscosidade")
+                                                            "Pa*s", key="viscosidade", format="%.4f")
 
-    fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade")
+    fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade", format="%.4f")
 
-    peso_molecular = st.number_input("Peso molecular [g/mol]:", key="peso_molecular")
+    peso_molecular = st.number_input("Peso molecular [g/mol]:", key="peso_molecular", format="%.4f")
 
     pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):", 90.8000,
                                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
-                                                                    "Pa", key="pressao_entrada")
+                                                                    "Pa", key="pressao_entrada", format="%.4f")
     
-    temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
+    temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura", format="%.4f")
 
     busca_tipo = st.radio("Será informado o scheduleou a outra categoria da espessura da parede?", ["SCH", "Categoria"], key="busca_tipo")
     
     schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key="schedule")
 
-    diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
+    diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha", format="%.4f")
 
     material_linha = st.selectbox("Material da linha:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316"], key="material_linha")
 

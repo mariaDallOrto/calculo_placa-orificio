@@ -315,8 +315,9 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
 def input_with_unit(label, value, unit_options, default_unit, key):
     st.write(label)  # Exibe o texto explicativo no topo
     col1, col2 = st.columns([3, 1])  # Define duas colunas para o valor e a unidade
+    format_string = f"%.4f"
     with col1:
-        input_value = st.number_input("Valor:", value=value, key=f"{key}_value", label_visibility="collapsed")
+        input_value = st.number_input("Valor:", value=value, key=f"{key}_value", label_visibility="collapsed", format=format_string)
     with col2:
         unit = st.selectbox("Unidade:", unit_options, index=unit_options.index(default_unit), key=f"{key}_unit", label_visibility="collapsed")
     return input_value, unit
@@ -417,33 +418,33 @@ def main_page():
 
     delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):",
                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
-                                                    "Pa", key="delta_p", format="%.4f")
+                                                    "Pa", key="delta_p")
 
     dp_processo = st.number_input("DP máximo permitido por processos (DPressureMax) [bar]:", key="dp_processo", format="%.4f")
 
     vazao_max_valor, vazao_max_unidade = input_with_unit("Vazão máxima de cálculo (ssdVazaoCalculo):",
                                                         ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h"
-                                                        ,"Nm³/h"], "kg/s", key="vazao_max", format="%.4f")
+                                                        ,"Nm³/h"], "kg/s", key="vazao_max")
 
     vazao_normal_valor, vazao_normal_unidade = input_with_unit("Vazão normal (FlowNormal):",
                                                             ["kg/s", "g/s", "kg/h", "g/h", "m³/s", "m³/h",
-                                                            "Nm³/h"], "kg/s", key="vazao_normal", format="%.4f")
+                                                            "Nm³/h"], "kg/s", key="vazao_normal")
 
     densidade_valor, densidade_unidade = input_with_unit("Densidade (Density):",
                                                         ["kg/m³", "g/cm³", "lb/ft³"],
-                                                        "kg/m³", key="densidade", format="%.4f")
+                                                        "kg/m³", key="densidade")
 
     viscosidade_valor, viscosidade_unidade = input_with_unit("Viscosidade (Viscosity):",
                                                             ["Pa*s", "cP", "mPa*s", "P"],
-                                                            "Pa*s", key="viscosidade", format="%.4f")
+                                                            "Pa*s", key="viscosidade")
 
-    fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", key="fator_compressibilidade", format="%.4f")
+    fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", key="fator_compressibilidade")
 
     peso_molecular = st.number_input("Peso molecular [g/mol]:", key="peso_molecular", format="%.4f")
 
     pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):",
                                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
-                                                                    "Pa", key="pressao_entrada", format="%.4f")
+                                                                    "Pa", key="pressao_entrada")
     
     temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", key="temperatura", format="%.4f")
 

@@ -294,7 +294,7 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
                 "Tag": tag,
                 "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
                 "Pressão diferencial na vazão normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
-                "Vazão mássica calculada [kg/s]": f"{q/(densidade*3600):.2f}",
+                "Vazão mássica calculada [kg/s]": f"{q*densidade/3600:.2f}",
                 "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
                 "Beta a temperatura operacional": f"{β:.5f}",
                 "Beta @20ºC": f"{beta:.5f}",
@@ -534,7 +534,7 @@ def main_page():
                 "Valor": [
                     tag,
                     f"{dp_normal / 9.80638:.2f}",
-                    f"{q/(densidade*3600):.2f}",
+                    f"{q*densidade/3600:.2f}",
                     f"{v_normal: .2f}",
                     f"{β:.5f}",
                     f"{beta:.5f}",

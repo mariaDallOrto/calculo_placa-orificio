@@ -247,7 +247,6 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
 
     d = β*D
     q = calculate_qm(C_atual, ε, β, D, dp_normal, p)
-    q = q*3600/1000
     Δω = calculate_delta_omega(β, C_atual, dp_max)
     v = calcular_velocidade(qm/p,D) # adicionar o caso com q (FS)
     Re_D = calcular_reynolds(p,v,D,μ) # segundo caso com essa nova velocidade
@@ -294,7 +293,7 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
                 "Tag": tag,
                 "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
                 "Pressão diferencial na vazão normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
-                "Vazão mássica calculada [kg/s]": f"{q*densidade/3600:.2f}",
+                "Vazão mássica calculada [kg/s]": f"{q:.2f}",
                 "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
                 "Beta a temperatura operacional": f"{β:.5f}",
                 "Beta @20ºC": f"{beta:.5f}",
@@ -534,7 +533,7 @@ def main_page():
                 "Valor": [
                     tag,
                     f"{dp_normal / 9.80638:.2f}",
-                    f"{q*densidade/3600:.2f}",
+                    f"{q:.2f}",
                     f"{v_normal: .2f}",
                     f"{β:.5f}",
                     f"{beta:.5f}",

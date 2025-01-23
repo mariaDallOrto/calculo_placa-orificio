@@ -254,7 +254,7 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
 
     return β, C_atual, d, q, Δω, v, Re_D, dp_normal
 
-def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, beta_initial, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha):
+def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, beta_initial, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha,densidade):
     """
     Recalcula valores para diferentes valores de Delta P até que a condição do Beta seja satisfeita.
 
@@ -293,8 +293,9 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
             beta_values.append({
                 "Tag": tag,
                 "Pressão diferencial máxima [mmH2O]": f"{dp_max_i / 9.80638:.2f}",
-                "Pressão diferencial normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
-                "Vazão calculada [m³/h]": f"{q:.2f}",
+                "Pressão diferencial na vazão normal [mmH2O]": f"{dp_normal / 9.80638:.2f}",
+                "Vazão mássica calculada [kg/s]": f"{q/(densidade*3600):.2f}",
+                "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
                 "Beta a temperatura operacional": f"{β:.5f}",
                 "Beta @20ºC": f"{beta:.5f}",
                 "Diâmetro da placa [mm] @20ºC": f"{d * 1000:.5f}",
@@ -302,7 +303,6 @@ def recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, t
                 "Perda de carga permanente [bar]": f"{Δω* 1e-5:.5f}",
                 "Velocidade [m/s]": f"{v:.2f}",
                 "Número de Reynolds": f"{Re_D:.2f}",
-                "Vazão mássica informada [kg/s]": f"{v_normal:.2f}",
                 "Perda de carga máxima informada [bar]": f"{dp_processo:.2f}",
             })
 
@@ -464,8 +464,8 @@ def main_page():
             alpha = buscar_material(material_placa) # usado no calculo da placa (material placa)
             alpha = alpha * 1e-6
 
-            beta = buscar_material(material_linha) # usado no calculo da parade externa (material linha)
-            beta = beta * 1e-6
+            alpha_m = buscar_material(material_linha) # usado no calculo da parade externa (material linha)
+            alpha_m = alpha_m * 1e-6
             
             if busca_tipo == 'SCH':
                 externo, parede = buscar_valores(diametro_linha, sch=float(schedule))
@@ -503,7 +503,7 @@ def main_page():
             externo = externo # mm
             parede = parede # mm
             D_i = (externo - 2*parede)/1000 # diâmetro interno m
-            D = D_i * np.sqrt(1 + (2*(beta) * (temperatura-20)))
+            D = D_i * np.sqrt(1 + (2*(alpha_m) * (temperatura-20)))
             μ = viscosidade # viscosidade Pa.s
             estado = estado_fluido
             p1 = p1 # Pressão de entrada em Pa
@@ -518,8 +518,9 @@ def main_page():
             st.session_state.resultados = {
                 "Parâmetro": [
                     "Tag",
-                    "Pressão diferencial normal [mmH2O]",
-                    "Vazão calculada [m³/h]",
+                    "Pressão diferencial na vazão normal [mmH2O]",
+                    "Vazão mássica calculada [kg/s]",
+                    "Vazão massica informada [kg/s]",
                     "Beta a temperatura operacional",
                     "Beta @20ºC",
                     "Diâmetro da placa @20ºC [mm]",
@@ -527,14 +528,14 @@ def main_page():
                     "Perda de carga permanente [bar]",
                     "Velocidade [m/s]",
                     "Número de Reynolds",
-                    "Vazão massica informada [kg/s]",
                     "Perda de carga máxima informada [bar]",
                     "Diâmetro da placa externo a temperatura 20ºC[mm]",
                 ],
                 "Valor": [
                     tag,
                     f"{dp_normal / 9.80638:.2f}",
-                    f"{q:.2f}",
+                    f"{q/(densidade*3600):.2f}",
+                    f"{v_normal: .2f}",
                     f"{β:.5f}",
                     f"{beta:.5f}",
                     f"{d * 1000:.5f}",
@@ -542,7 +543,6 @@ def main_page():
                     f"{Δω * 1e-5:.2f}",
                     f"{v:.2f}",
                     f"{Re_D:.2f}",
-                    f"{v_normal: .2f}",
                     f"{dp_processo:.2f}",
                     f"{D_i * 1000:.2f}",
                 ],
@@ -568,7 +568,7 @@ def main_page():
                         dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638
 
                     # Recalcula valores
-                    beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha)
+                    beta_values = recalcular_beta(tag, v_normal, v_max, dp_max, p, qm, D, μ, estado, p1, k, tomada, β, beta_condition, dp_adjustment, dp_processo, D_i, temperatura, alpha, densidade)
 
                     # Exibe os resultados recalculados
                     if beta_values:

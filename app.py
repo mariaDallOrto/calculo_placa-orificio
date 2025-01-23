@@ -97,8 +97,10 @@ def converter_vazao_volumetrica_para_massica(valor, unidade, densidade):
  
 # Cache para carregar a planilha
 @st.cache_data
-def carregar_planilha():
-    return pd.read_excel("tubos.xlsx")
+def carregar_planilhas():
+    tubos = pd.read_excel("tubos.xlsx")
+    coeficiente = pd.read_excel("coeficiente.xlsx")
+    return tubos, coeficiente
  
 # Inicialização do estado da sessão
 if "resultados" not in st.session_state:
@@ -107,7 +109,7 @@ if "calculo_feito" not in st.session_state:
     st.session_state.calculo_feito = False
  
 # Carregar a planilha
-planilha = carregar_planilha()
+planilha, coef_mat = carregar_planilhas()
  
 # Função para buscar valores
 def buscar_valores(d, sch=None, denominacao=None):
@@ -129,7 +131,11 @@ def buscar_valores(d, sch=None, denominacao=None):
         return externo, parede
     else:
         return None, None  # Se não encontrar resultados
- 
+
+def buscar_material(material):
+    result = coef_mat.loc[coef_mat['material'] == material, 'coeficiente']
+    return result.values[0] if not result.empty else None
+    
 def calcular_beta(C, ε, D, qm, dp_normal, p):
     numerator = (C * ε * np.pi * D**2)**2
     denominator = 8 * qm**2
@@ -404,8 +410,10 @@ def main_page():
 
     # caso vapor com densidade em kg/m^3, vazão em kg/h - padrão atual do aeng
     # caso gas com vazão em Nm^3/h
-    st.caption("Preencher o peso molecular apenas se as vazões estejam em Nm³/h e neste e apenas neste caso escolha Gas")
+    st.caption("Preencher o peso molecular apenas se as vazões estejam em Nm³/h e neste caso escolha Gas")
     estado_fluido = st.selectbox("Estado do fluido (FluidState):", ["Gas", "Liquido", "Vapor"], key="estado_fluido")
+
+    tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
 
     delta_p_valor, delta_p_unidade = input_with_unit("Delta P na vazão máxima de cálculo (ssdDpCondicaoVazaoCalculo):", 2500.0,
                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O"],
@@ -429,29 +437,33 @@ def main_page():
                                                             ["Pa*s", "cP", "mPa*s", "P"],
                                                             "Pa*s", key="viscosidade")
 
-    temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
-
-    alpha = 1.2e-5
-
     fator_compressibilidade = st.number_input("Fator de Compressibilidade Cp/Cv (CpCv):", value=1.4, key="fator_compressibilidade")
 
-    busca_tipo = st.radio("Será informado o scheduleou a outra categoria da espessura da parede?", ["SCH", "Categoria"], key="busca_tipo")
-    schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key="schedule")
-
-    diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
+    peso_molecular = st.number_input("Peso molecular [g/mol]:", key="peso_molecular")
 
     pressao_entrada_valor, pressao_entrada_unidade = input_with_unit("Pressão de entrada (PressureNormal):", 90.8000,
                                                                     ["Pa", "kPa", "MPa", "bar", "psi", "mmH2O", "inH2O","kgf/cm²"],
                                                                     "Pa", key="pressao_entrada")
+    
+    temperatura = st.number_input("Temperatura de Operação (TemperatureNormal) [ºC]:", value=20.00, key="temperatura")
 
-    tomada = st.selectbox("Informe o tipo de medição (ssdTipoTomada):", ["Flange", "D", "Canto"], key="tomada")
+    busca_tipo = st.radio("Será informado o scheduleou a outra categoria da espessura da parede?", ["SCH", "Categoria"], key="busca_tipo")
+    
+    schedule = st.text_input("Schedule ou categoria (PipeSchedule):", value="", key="schedule")
 
-    peso_molecular = st.number_input("Peso molecular:", key="peso_molecular")
+    diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", value=3.00, key="diametro_linha")
 
- 
+    material_linha = st.selectbox("Material da linha:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316"], key="material_linha")
+
+    material_placa = st.selectbox("Material da placa:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316"], key="eaterial_placa")
+
     if st.button("Calcular"):
         st.session_state.calculo_feito = True
         try:
+            alpha = float(buscar_material(material_placa)) # usado no calculo da placa (material placa)
+
+            beta = float(buscar_material(material_linha)) # usado no calculo da parade externa (material linha)
+            
             if busca_tipo == 'SCH':
                 externo, parede = buscar_valores(diametro_linha, sch=float(schedule))
             elif busca_tipo == 'Categoria':
@@ -488,7 +500,7 @@ def main_page():
             externo = externo # mm
             parede = parede # mm
             D_i = (externo - 2*parede)/1000 # diâmetro interno m
-            D = D_i * np.sqrt(1 + (2*(16e-6) * (temperatura-20)))
+            D = D_i * np.sqrt(1 + (2*(beta) * (temperatura-20)))
             μ = viscosidade # viscosidade Pa.s
             estado = estado_fluido
             p1 = p1 # Pressão de entrada em Pa

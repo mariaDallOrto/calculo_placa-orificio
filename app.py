@@ -526,7 +526,7 @@ def main_page():
                     "Tag",
                     "Pressão diferencial na vazão normal [mmH2O]",
                     "Vazão mássica calculada [kg/s]",
-                    "Vazão massica informada [kg/s]",
+                    "Vazão massica normal informada [kg/s]",
                     "Beta a temperatura operacional",
                     "Beta @20ºC",
                     "Diâmetro da placa @20ºC [mm]",

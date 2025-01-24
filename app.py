@@ -58,7 +58,7 @@ def converter_unidade(valor, unidade):
             'MPa': 1e6,
             'bar': 1e5,
             'psi': 6894.76,
-            'mmH2O': 9.80665,
+            'mmH2O': 9.80638,
             'inH2O': 249.08891,
             'kgf/cm²': 98.0665e3,
         },
@@ -568,7 +568,7 @@ def main_page():
                     # Define condições específicas para cada caso
                     if β > 0.7:
                         beta_condition = lambda β, dp_max_i: β > 0.7 and dp_max_i < 50000
-                        dp_adjustment = lambda dp_max_i: dp_max_i + 250 * 9.80638
+                        dp_adjustment = lambda dp_max_i: dp_max_i + 250 * 9.80638 
                     elif β < 0.2:
                         beta_condition = lambda β, dp_max_i: β < 0.2 and dp_max_i > 0
                         dp_adjustment = lambda dp_max_i: dp_max_i - 250 * 9.80638

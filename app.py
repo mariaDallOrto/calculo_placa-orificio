@@ -453,9 +453,9 @@ def main_page():
 
     diametro_linha = st.number_input("Diâmetro da linha (pdLineNominalDiam) [em polegadas]:", key="diametro_linha", format="%.4f")
 
-    material_linha = st.selectbox("Material da linha:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316"], key="material_linha")
+    material_linha = st.selectbox("Material da linha:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316", "Plastico reforçado com fibra de vidro", "PTFE"], key="material_linha")
 
-    material_placa = st.selectbox("Material da placa:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316"], key="eaterial_placa")
+    material_placa = st.selectbox("Material da placa:", ["Aço Carbono", "Aço Inox 304", "Aço Inox 310", "Aço Inox 316", "Plastico reforçado com fibra de vidro", "PTFE"], key="eaterial_placa")
 
     if st.button("Calcular"):
         st.session_state.calculo_feito = True

@@ -242,8 +242,11 @@ def calculo_iterativo(v_normal,v_max,dp_max, p, qm, D, μ, estado, p1, k, tomada
         C_anterior = C_atual
         if estado == "Gas" or "Vapor":
             ε = calculo_epsilon(β, p1, p2, k)
-        β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
-        C_atual = calcular_c(β, qm,p,D,μ, tomada)
+            β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
+            C_atual = calcular_c(β, qm,p,D,μ, tomada)
+        else:
+            β = calcular_beta(C_atual, ε, D, qm, dp_normal, p)
+            C_atual = calcular_c(β, qm,p,D,μ, tomada)
 
     d = β*D
     q = calculate_qm(C_atual, ε, β, D, dp_normal, p)

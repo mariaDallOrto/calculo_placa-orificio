@@ -479,7 +479,11 @@ def main_page():
                 vazao_normal_valor = 0.044*vazao_normal_valor*peso_molecular
                 vazao_max_unidade = "kg/h"
                 vazao_normal_unidade = "kg/h"
-
+            else:
+                vazao_max_valor = vazao_max_valor
+                vazao_normal_valor = vazao_normal_valor
+                vazao_max_unidade = vazao_max_unidade
+                vazao_normal_unidade = vazao_normal_unidade
             # Converter valores para unidades padrão
             dp_max, _ = converter_unidade(delta_p_valor, delta_p_unidade)
             densidade, _ = converter_unidade(densidade_valor, densidade_unidade)
